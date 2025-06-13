@@ -1,0 +1,4 @@
+your-project/
+├── public/
+│   └── index.html  (your HTML file goes here)
+└── package.json
