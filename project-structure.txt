@@ -1,4 +1,6 @@
 your-project/
-├── public/
-│   └── index.html  (your HTML file goes here)
-└── package.json
+├── public/          # This directory will be created by the build script
+├── src/
+│   └── index.html   # Your HTML file goes here initially
+├── package.json     # Defines build scripts and dependencies
+└── vercel.json      # Vercel-specific configuration
