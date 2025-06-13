@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual AI Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .camera-section {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #video {
+            width: 640px;
+            height: 480px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gesture-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .ai-response {
+            width: 100%;
+            height: 200px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .response-content {
+            font-size: 4rem;
+            transition: all 0.5s ease;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .gesture-guide {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .gesture-item {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            color: white;
+            min-width: 120px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .gesture-item:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+
+        .gesture-emoji {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .gesture-name {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .wave-animation {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7);
+            background-size: 400% 400%;
+            animation: waveGradient 2s ease-in-out;
+        }
+
+        @keyframes waveGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .thinking-animation {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            background-size: 400% 400%;
+            animation: thinking 1s ease-in-out infinite;
+        }
+
+        @keyframes thinking {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .color-burst {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, transparent 20%, rgba(255,255,255,0.1) 21%, rgba(255,255,255,0.1) 34%, transparent 35%, transparent);
+            animation: burst 0.5s ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes burst {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+
+        .start-button {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0,0,0,0.3);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="camera-section">
+            <video id="video" autoplay muted></video>
+            <canvas id="gestureCanvas" class="gesture-overlay"></canvas>
+            <div class="status-indicator"></div>
+        </div>
+        
+        <div class="ai-response" id="aiResponse">
+            <div class="response-content" id="responseContent">👋</div>
+        </div>
+
+        <button class="start-button" id="startButton">Start Camera</button>
+
+        <div class="gesture-guide">
+            <div class="gesture-item" data-gesture="wave">
+                <span class="gesture-emoji">👋</span>
+                <div class="gesture-name">Wave Hello</div>
+            </div>
+            <div class="gesture-item" data-gesture="thumbsUp">
+                <span class="gesture-emoji">👍</span>
+                <div class="gesture-name">Thumbs Up</div>
+            </div>
+            <div class="gesture-item" data-gesture="thumbsDown">
+                <span class="gesture-emoji">👎</span>
+                <div class="gesture-name">Thumbs Down</div>
+            </div>
+            <div class="gesture-item" data-gesture="openHand">
+                <span class="gesture-emoji">✋</span>
+                <div class="gesture-name">Open Hand</div>
+            </div>
+            <div class="gesture-item" data-gesture="closedFist">
+                <span class="gesture-emoji">✊</span>
+                <div class="gesture-name">Closed Fist</div>
+            </div>
+            <div class="gesture-item" data-gesture="peace">
+                <span class="gesture-emoji">☮️</span>
+                <div class="gesture-name">Peace Sign</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MediaPipe dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            class VisualAIAssistant {
+                constructor() {
+                    this.video = document.getElementById("video");
+                    this.canvas = document.getElementById("gestureCanvas");
+                    this.ctx = this.canvas.getContext("2d");
+                    this.responseElement = document.getElementById("responseContent");
+                    this.aiResponse = document.getElementById("aiResponse");
+                    this.startButton = document.getElementById("startButton");
+
+                    this.isActive = false;
+                    this.lastGesture = null;
+                    this.gestureTimeout = null;
+                    this.currentMood = "neutral";
+                    this.hands = null;
+                    this.camera = null;
+                    this.lastHandX = 0;
+                    this.lastProcessTime = 0;
+                    this.processCooldown = 1000; // 1 second cooldown between gesture processing
+
+                    this.responses = {
+                        wave: ["👋", "🤗", "😊", "✨"],
+                        thumbsUp: ["😄", "🎉", "⭐", "💫", "🌟"],
+                        thumbsDown: ["😔", "💔", "😢", "🌧️"],
+                        openHand: ["🤔", "❓", "🧐", "💭"],
+                        closedFist: ["💪", "🔥", "⚡", "🚀"],
+                        peace: ["☮️", "🕊️", "🌈", "💝", "🦄"],
+                        neutral: ["🤖", "👁️", "🔮", "✨"],
+                    };
+
+                    this.setupEventListeners();
+                }
+
+                setupEventListeners() {
+                    this.startButton.addEventListener("click", () => this.initCamera());
+
+                    // Add click interactions for demo
+                    document.querySelectorAll(".gesture-item").forEach((item) => {
+                        item.addEventListener("click", () => {
+                            const gesture = item.getAttribute("data-gesture");
+                            this.processGesture(gesture);
+                        });
+                    });
+                }
+
+                async initCamera() {
+                    try {
+                        this.startButton.classList.add("hidden");
+
+                        // Initialize MediaPipe Hands
+                        this.hands = new Hands({
+                            locateFile: (file) => {
+                                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                            },
+                        });
+
+                        this.hands.setOptions({
+                            maxNumHands: 2,
+                            modelComplexity: 1,
+                            minDetectionConfidence: 0.5,
+                            minTrackingConfidence: 0.5,
+                        });
+
+                        this.hands.onResults((results) => this.onHandResults(results));
+
+                        // Initialize camera
+                        this.camera = new Camera(this.video, {
+                            onFrame: async () => {
+                                await this.hands.send({ image: this.video });
+                            },
+                            width: 640,
+                            height: 480,
+                        });
+
+                        await this.camera.start();
+
+                        // Set canvas dimensions
+                        this.canvas.width = 640;
+                        this.canvas.height = 480;
+                        this.isActive = true;
+                    } catch (err) {
+                        console.error("Camera access denied or MediaPipe error:", err);
+                        alert("Could not access the camera. Please ensure you have granted camera permissions.");
+                    }
+                }
+
+                onHandResults(results) {
+                    // Clear canvas
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                        // Draw hand landmarks
+                        for (const landmarks of results.multiHandLandmarks) {
+                            drawConnectors(this.ctx, landmarks, HAND_CONNECTIONS, {
+                                color: "white",
+                                lineWidth: 3,
+                            });
+                            drawLandmarks(this.ctx, landmarks, {
+                                color: "rgba(255, 0, 0, 0.8)",
+                                lineWidth: 1,
+                                radius: 3,
+                            });
+                        }
+
+                        // Detect gestures
+                        this.detectGesture(results.multiHandLandmarks[0]);
+                    }
+                }
+
+                detectGesture(landmarks) {
+                    if (!landmarks) return;
+
+                    // Thumb tip is landmark 4
+                    const thumbTip = landmarks[4];
+                    // Index finger tip is landmark 8
+                    const indexTip = landmarks[8];
+                    // Middle finger tip is landmark 12
+                    const middleTip = landmarks[12];
+                    // Ring finger tip is landmark 16
+                    const ringTip = landmarks[16];
+                    // Pinky tip is landmark 20
+                    const pinkyTip = landmarks[20];
+                    // Palm base is landmark 0
+                    const palmBase = landmarks[0];
+                    // Wrist is landmark 0
+                    const wrist = landmarks[0];
+
+                    // Check if enough time has passed since last gesture processing
+                    const now = Date.now();
+                    if (now - this.lastProcessTime < this.processCooldown) {
+                        return;
+                    }
+
+                    // Detect thumbs up
+                    if (
+                        thumbTip.y < wrist.y &&
+                        indexTip.y > thumbTip.y &&
+                        middleTip.y > thumbTip.y &&
+                        ringTip.y > thumbTip.y &&
+                        pinkyTip.y > thumbTip.y
+                    ) {
+                        this.processGesture("thumbsUp");
+                        this.lastProcessTime = now;
+                        return;
+                    }
+
+                    // Detect thumbs down
+                    if (
+                        thumbTip.y > wrist.y &&
+                        indexTip.y < thumbTip.y &&
+                        middleTip.y < thumbTip.y &&
+                        ringTip.y < thumbTip.y &&
+                        pinkyTip.y < thumbTip.y
+                    ) {
+                        this.processGesture("thumbsDown");
+                        this.lastProcessTime = now;
+                        return;
+                    }
+
+                    // Detect peace sign
+                    if (indexTip.y < wrist.y && middleTip.y < wrist.y && ringTip.y > middleTip.y && pinkyTip.y > middleTip.y) {
+                        this.processGesture("peace");
+                        this.lastProcessTime = now;
+                        return;
+                    }
+
+                    // Detect open hand
+                    if (indexTip.y < palmBase.y && middleTip.y < palmBase.y && ringTip.y < palmBase.y && pinkyTip.y < palmBase.y) {
+                        this.processGesture("openHand");
+                        this.lastProcessTime = now;
+                        return;
+                    }
+
+                    // Detect closed fist
+                    if (
+                        indexTip.y > palmBase.y - 0.05 &&
+                        middleTip.y > palmBase.y - 0.05 &&
+                        ringTip.y > palmBase.y - 0.05 &&
+                        pinkyTip.y > palmBase.y - 0.05
+                    ) {
+                        this.processGesture("closedFist");
+                        this.lastProcessTime = now;
+                        return;
+                    }
+
+                    // Detect wave (simplified - just check if hand is moving horizontally)
+                    const horizontalMovement = this.lastHandX ? Math.abs(this.lastHandX - wrist.x) : 0;
+                    if (horizontalMovement > 0.05) {
+                        this.processGesture("wave");
+                        this.lastProcessTime = now;
+                        return;
+                    }
+
+                    // Store last hand position for movement detection
+                    this.lastHandX = wrist.x;
+                }
+
+                processGesture(gesture) {
+                    // Avoid processing the same gesture repeatedly
+                    if (this.lastGesture === gesture) return;
+
+                    if (this.gestureTimeout) {
+                        clearTimeout(this.gestureTimeout);
+                    }
+
+                    this.lastGesture = gesture;
+                    this.respondToGesture(gesture);
+
+                    // Reset to neutral after 3 seconds
+                    this.gestureTimeout = setTimeout(() => {
+                        this.lastGesture = null;
+                        this.respondToGesture("neutral");
+                    }, 3000);
+                }
+
+                respondToGesture(gesture) {
+                    const responses = this.responses[gesture] || this.responses.neutral;
+                    const response = responses[Math.floor(Math.random() * responses.length)];
+
+                    // Animate response
+                    this.animateResponse(response, gesture);
+
+                    // Change background based on gesture
+                    this.updateBackground(gesture);
+                }
+
+                animateResponse(response, gesture) {
+                    this.responseElement.style.transform = "scale(0.5)";
+                    this.responseElement.style.opacity = "0";
+
+                    setTimeout(() => {
+                        this.responseElement.textContent = response;
+                        this.responseElement.style.transform = "scale(1.2)";
+                        this.responseElement.style.opacity = "1";
+
+                        setTimeout(() => {
+                            this.responseElement.style.transform = "scale(1)";
+                        }, 200);
+                    }, 150);
+
+                    // Add burst effect
+                    this.addBurstEffect();
+                }
+
+                updateBackground(gesture) {
+                    this.aiResponse.className = "ai-response";
+
+                    switch (gesture) {
+                        case "wave":
+                            this.aiResponse.classList.add("wave-animation");
+                            break;
+                        case "thumbsUp":
+                            this.aiResponse.style.background = "linear-gradient(45deg, #4CAF50, #8BC34A)";
+                            break;
+                        case "thumbsDown":
+                            this.aiResponse.style.background = "linear-gradient(45deg, #f44336, #e91e63)";
+                            break;
+                        case "openHand":
+                            this.aiResponse.classList.add("thinking-animation");
+                            break;
+                        case "closedFist":
+                            this.aiResponse.style.background = "linear-gradient(45deg, #FF5722, #FF9800)";
+                            break;
+                        case "peace":
+                            this.aiResponse.style.background = "linear-gradient(45deg, #9C27B0, #3F51B5)";
+                            break;
+                        default:
+                            this.aiResponse.style.background = "rgba(255,255,255,0.95)";
+                    }
+                }
+
+                addBurstEffect() {
+                    const burst = document.createElement("div");
+                    burst.className = "color-burst";
+                    this.aiResponse.appendChild(burst);
+
+                    setTimeout(() => {
+                        burst.remove();
+                    }, 500);
+                }
+            }
+
+            // Initialize the assistant
+            const assistant = new VisualAIAssistant();
+        });
+    </script>
+</body>
+</html>
